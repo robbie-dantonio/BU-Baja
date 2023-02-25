@@ -15,7 +15,7 @@ sends data to receiver via transmitter.
 
   const byte address[6] = "00001";
 
-//Configuring data package as a struct with longitude and latitude
+//Configuring data package as a struct with necessary data
 typedef struct data {
   float lon;
   float lat;

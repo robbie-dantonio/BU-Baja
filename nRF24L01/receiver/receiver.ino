@@ -1,17 +1,26 @@
-#include <SPI.h>
-#include <nRF24L01.h>
-#include <RF24.h>
+//Configure radio
+  #include <SPI.h>
+  #include <nRF24L01.h>
+  #include <RF24.h>
 
-#define ce 4
-#define csn 5
+  #define ce 4
+  #define csn 5
 
-RF24 radio(ce, csn);
+  RF24 radio(ce, csn);
 
-const byte address[6] = "00001";
+  const byte address[6] = "00001";
 
-typedef struct location {
-  float lat;
+//Configuring data package as a struct with necessary data
+typedef struct data {
   float lon;
+  float lat;
+  int flipped; //1 if car flipped over, 0 otherwise
+
+  //speed
+  float speedX;
+  float speedY;
+  float speedZ;
+  float speed; //Speed determined by integrating acceleration
 };
 
 void setup() {
@@ -29,12 +38,13 @@ void setup() {
 }
 
 void loop() {
-  location data;
+  data package;
 
   if (radio.available()) {
-    radio.read(&data, sizeof(location));
+    radio.read(&package, sizeof(data));
   }
 
-  Serial.print("Longitude: " + (String)data.lon + "\n");
-  Serial.print("Latitude: " + (String)data.lat + "\n\n");
+  Serial.print("Longitude: " + (String)package.lon + "\n");
+  Serial.print("Latitude: " + (String)package.lat + "\n");
+  Serial.print("Speed: " + (String)package.speed + "\n\n");
 }
