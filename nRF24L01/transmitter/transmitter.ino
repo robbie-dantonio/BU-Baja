@@ -15,6 +15,19 @@ sends data to receiver via transmitter.
 
   const byte address[6] = "00001";
 
+//Configuring data package as a struct with longitude and latitude
+typedef struct data {
+  float lon;
+  float lat;
+  int flipped; //1 if car flipped over, 0 otherwise
+
+  //speed
+  float speedX;
+  float speedY;
+  float speedZ;
+  float speed; //Speed determined by integrating acceleration
+};
+
 //Configure GPS module
   #include <Adafruit_GPS.h>
 
@@ -31,6 +44,9 @@ sends data to receiver via transmitter.
 
   Adafruit_MMA8451 mma = Adafruit_MMA8451();
 
+  //Speed calculation
+  void calcSpeed (data* package, float timeElapsed, float xAcc, float yAcc, float zAcc);
+
 //Configure LCD
 
 
@@ -44,13 +60,6 @@ sends data to receiver via transmitter.
   #define BIN1 10
   #define BIN2 11
   Stepper stepper (STEPS, AIN2, AIN1, BIN1, BIN2);
-
-//Configuring data package as a struct with longitude and latitude
-typedef struct data {
-  float lon;
-  float lat;
-  int flipped; //1 if car flipped over, 0 otherwise
-};
 
 void setup() {
   //Setup serial connection for LCD
@@ -105,6 +114,10 @@ void setup() {
 void loop() {
   //Initialize data package
   data package;
+  package.speedX = 0;
+  package.speedY = 0;
+  package.speedZ = 0;
+  package.speed = 0;
 
   //Receive GPS data
   char c = GPS.read();
@@ -116,23 +129,26 @@ void loop() {
       float longitude = GPS.longitude;
       package.lat = latitude;
       package.lon = longitude;
-
-      //Send data to receiver (for printing to serial monitor for now)
-      radio.write(&package, sizeof(package));
     }
   }
 
   //Receive accelerometer data
     //Get accelerations
-      /* Get a new sensor event */ 
+      /* Get a new sensor event, measure time elapsed */ 
+        float timeStart = millis();
         sensors_event_t event; 
         mma.getEvent(&event);
+        float timeEnd = millis();
+        float timeElapsed = timeEnd-timeStart;
 
       /* Display the results (acceleration is measured in m/s^2) */
       float xdir = event.acceleration.x;
       float ydir = event.acceleration.y;
       float zdir = event.acceleration.z;
     
+      //Calculate speed
+        calcSpeed (&package, timeElapsed, xdir, ydir, zdir);
+ 
     //Get orientation
       /*The return value ranges from 0 to 7
       0: Portrait Up Front
@@ -151,12 +167,25 @@ void loop() {
         else
           package.flipped = 0;
 
-    //Figure out the speed?
+  //Send data to receiver (for printing to serial monitor for now)
+  radio.write(&package, sizeof(package));
+
 
   //LCD stuff
 
 
   //Stepper motor
 
+}
 
+void calcSpeed (data *package, float timeElapsed, float xAcc, float yAcc, float zAcc) {
+  //"Integrate"
+  float speedChangeX = package->speedX + xAcc*timeElapsed;
+  float speedChangeY = package->speedY + yAcc*timeElapsed;
+  float speedChangeZ = package->speedZ + zAcc*timeElapsed;
+
+  package->speedX += speedChangeX;
+  package->speedY += speedChangeY;
+  package->speedZ += speedChangeZ;
+  package->speed += pow(pow(speedChangeX, 2) + pow(speedChangeY, 2) + pow(speedChangeZ, 2), 0.5);
 }
