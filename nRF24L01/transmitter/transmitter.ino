@@ -34,6 +34,17 @@ sends data to receiver via transmitter.
 //Configure LCD
 
 
+//Configure stepper motor
+  #include <Stepper.h>
+
+  #define STEPS 200
+
+  #define AIN2 8
+  #define AIN1 9
+  #define BIN1 10
+  #define BIN2 11
+  Stepper stepper (STEPS, AIN2, AIN1, BIN1, BIN2);
+
 //Configuring data package as a struct with longitude and latitude
 typedef struct data {
   float lon;
@@ -86,6 +97,9 @@ void setup() {
     //Output set range
       int range = mma.getRange();
       Serial.println("MMA8451 range set to " + (String)pow(2, range) + " G");
+
+  //Setup for stepper motor
+    stepper.setSpeed(60); //Speed set to 30 RPM
 }
 
 void loop() {
@@ -139,7 +153,8 @@ void loop() {
 
   //LCD stuff
 
+
   //Stepper motor
-        
+
 
 }
