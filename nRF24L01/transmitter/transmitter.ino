@@ -161,6 +161,7 @@ void loop() {
       interrupts();
       
       totalFuel += flowRate * (interval / 1000.0);
+    }
 
   //Receive accelerometer data
     //Get accelerations
