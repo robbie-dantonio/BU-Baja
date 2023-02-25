@@ -1,3 +1,5 @@
+/*Receiver code, connected to ground station in the pits*/
+
 //Configure radio
   #include <SPI.h>
   #include <nRF24L01.h>

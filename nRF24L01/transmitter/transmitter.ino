@@ -3,6 +3,19 @@ Transmitter code, goes in microcontroller on car. Receives GPS data from GPS mod
 sends data to receiver via transmitter.
 */
 
+//Configure flow meter (measures tank level)
+  // Define the pins for the flow meter sensor
+  const int flowMeterPin = 3; //Changed since pin 7 is used by gpsOut
+
+  // Define the variables
+  volatile float flowRate;
+  volatile unsigned int pulseCount;
+
+  float totalFuel = 0.0;
+
+  unsigned long previousMillis = 0;
+  const long interval = 1000;
+
 //Configure radio module
   #include <SPI.h>
   #include <nRF24L01.h>
@@ -62,6 +75,11 @@ typedef struct data {
   Stepper stepper (STEPS, AIN2, AIN1, BIN1, BIN2);
 
 void setup() {
+  //Setup for flow meter
+    // Initialize the flow meter sensor
+    pinMode(flowMeterPin, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(flowMeterPin), pulseCounter, FALLING);
+
   //Setup serial connection for LCD
 
 
@@ -131,6 +149,18 @@ void loop() {
       package.lon = longitude;
     }
   }
+
+  // Calculate the flow rate and the amount of gasoline used (flow meter)
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) {
+      previousMillis = currentMillis;
+      
+      noInterrupts();
+      flowRate = pulseCount / 7.5;
+      pulseCount = 0;
+      interrupts();
+      
+      totalFuel += flowRate * (interval / 1000.0);
 
   //Receive accelerometer data
     //Get accelerations
