@@ -151,6 +151,8 @@ void loop() {
         else
           package.flipped = 0;
 
+    //Figure out the speed?
+
   //LCD stuff
 
 
