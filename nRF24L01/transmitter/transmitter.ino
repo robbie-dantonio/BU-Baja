@@ -5,7 +5,7 @@ sends data to receiver via transmitter.
 
 //Configure flow meter (measures tank level)
   // Define the pins for the flow meter sensor
-  const int flowMeterPin = 3; //Changed since pin 7 is used by gpsOut
+  /*const int flowMeterPin = 3; //Changed since pin 7 is used by gpsOut
 
   // Define the variables
   volatile float flowRate;
@@ -14,7 +14,7 @@ sends data to receiver via transmitter.
   float totalFuel = 0.0;
 
   unsigned long previousMillis = 0;
-  const long interval = 1000;
+  const long interval = 1000;*/
 
 //Configure radio module
   #include <SPI.h>
@@ -47,7 +47,7 @@ typedef struct data {
   #define gpsIn 6
   #define gpsOut 7
 
-  SoftwareSerial mySerial(6, 7);
+  SoftwareSerial mySerial(gpsIn, gpsOut);
   Adafruit_GPS GPS(&mySerial);
 
 //Configure accelerometer
@@ -77,11 +77,11 @@ typedef struct data {
 void setup() {
   //Setup for flow meter
     // Initialize the flow meter sensor
-    pinMode(flowMeterPin, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(flowMeterPin), pulseCounter, FALLING);
+    //pinMode(flowMeterPin, INPUT_PULLUP);
+    //attachInterrupt(digitalPinToInterrupt(flowMeterPin), pulseCounter, FALLING);
 
   //Setup serial connection for LCD
-
+  
 
   //Setup for radio module
     radio.begin();
@@ -147,12 +147,14 @@ void loop() {
       float longitude = GPS.longitude;
       package.lat = latitude;
       package.lon = longitude;
+
+      //Serial.print("Latitude: " + (String)latitude + " Longitude: " + (String)longitude + "\n");
     }
   }
 
   // Calculate the flow rate and the amount of gasoline used (flow meter)
     unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
+    /*if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
       
       noInterrupts();
@@ -161,7 +163,7 @@ void loop() {
       interrupts();
       
       totalFuel += flowRate * (interval / 1000.0);
-    }
+    }*/
 
   //Receive accelerometer data
     //Get accelerations
