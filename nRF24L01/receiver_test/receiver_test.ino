@@ -28,7 +28,7 @@ void setup() {
     radio.stopListening();
     //radio.startListening();
     radio.setChannel(channel);
-    radio.setPALevel(RF24_PA_LOW);
+    radio.setPALevel(RF24_PA_MIN);
 }
 
 //=============

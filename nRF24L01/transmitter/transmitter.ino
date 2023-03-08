@@ -32,13 +32,16 @@ sends data to receiver via transmitter.
 typedef struct data {
   float lon;
   float lat;
-  int flipped; //1 if car flipped over, 0 otherwise
+  int orientation; //What each value means in accelerometer program section
 
   //speed
   float speedX;
   float speedY;
   float speedZ;
   float speed; //Speed determined by integrating acceleration
+
+  //gps info
+  int gpsNoPackage;
 };
 
 //Configure GPS module
@@ -50,12 +53,17 @@ typedef struct data {
   SoftwareSerial mySerial(gpsIn, gpsOut);
   Adafruit_GPS GPS(&mySerial);
 
+  int gpsNoPackage = 0;
+
 //Configure accelerometer
   #include <Wire.h>
   #include <Adafruit_MMA8451.h>
   #include <Adafruit_Sensor.h>
 
   Adafruit_MMA8451 mma = Adafruit_MMA8451();
+
+  //Marker indicating whether accelerator is off
+  int accOff = 0;
 
   //Speed calculation
   void calcSpeed (data* package, float timeElapsed, float xAcc, float yAcc, float zAcc);
@@ -111,19 +119,21 @@ void setup() {
   //Setup for accelerometer
     //MMA8451 status
       if (!mma.begin()) {
-        Serial.println("Adaruit MMA8451 Couldn't start");
-        while (1);
+        Serial.println("Adafruit MMA8451 Couldn't start");
+        accOff = 1; //Set marker indicating accelerator is disabled
       }
-      Serial.println("MMA8451 found!");
-
-    //Set range (currently set to 4Gs)
-      //mma.setRange(MMA8451_RANGE_2_G);
-      //mma.setRange(MMA8451_RANGE_4_G);
-      mma.setRange(MMA8451_RANGE_8_G);
+      else {
+        Serial.println("MMA8451 found!");
+      
+        //Set range (currently set to 4Gs)
+          //mma.setRange(MMA8451_RANGE_2_G);
+          //mma.setRange(MMA8451_RANGE_4_G);
+          mma.setRange(MMA8451_RANGE_8_G);
     
-    //Output set range
-      int range = mma.getRange();
-      Serial.println("MMA8451 range set to " + (String)(pow(2, range+1)) + " G");
+        //Output set range
+          int range = mma.getRange();
+          Serial.println("MMA8451 range set to " + (String)(pow(2, range+1)) + " G");
+      }
 
   //Setup for stepper motor
     stepper.setSpeed(60); //Speed set to 30 RPM
@@ -141,6 +151,7 @@ void loop() {
   char c = GPS.read();
   int package_received = GPS.newNMEAreceived();
   if (package_received) {
+    package.gpsNoPackage = gpsNoPackage; //Tell ground station that gps package was received
     if (GPS.parse(GPS.lastNMEA())) { //Parse GPS data
       //Get data
       float latitude = GPS.latitude;
@@ -148,8 +159,12 @@ void loop() {
       package.lat = latitude;
       package.lon = longitude;
 
-      //Serial.print("Latitude: " + (String)latitude + " Longitude: " + (String)longitude + "\n");
+      Serial.print("Latitude: " + (String)latitude + " Longitude: " + (String)longitude + "\n");
     }
+  }
+  else {
+    gpsNoPackage = 1;
+    package.gpsNoPackage = gpsNoPackage;
   }
 
   // Calculate the flow rate and the amount of gasoline used (flow meter)
@@ -167,6 +182,7 @@ void loop() {
 
   //Receive accelerometer data
     //Get accelerations
+    if (!accOff) {
       /* Get a new sensor event, measure time elapsed */ 
         float timeStart = millis();
         sensors_event_t event; 
@@ -193,12 +209,14 @@ void loop() {
       6: Landscape Left Front
       7: Landscape Left Back */
 
-      int orientation = mma.getOrientation();
+      package.orientation = mma.getOrientation();
+      Serial.print("Orientation: " + (String)package.orientation + "\n");
       //Need to figure out what the orientations are, will do this for now:
-        if (zdir < 0)
+        /*if (zdir < 0)
           package.flipped = 1; //1 for flipped, 0 for anything else
         else
-          package.flipped = 0;
+          package.flipped = 0;*/
+    }
 
   //Send data to receiver (for printing to serial monitor for now)
   radio.write(&package, sizeof(package));
@@ -223,5 +241,5 @@ void calcSpeed (data *package, float timeElapsed, float xAcc, float yAcc, float 
   package->speedZ += speedChangeZ;
   package->speed += pow(pow(speedChangeX, 2) + pow(speedChangeY, 2) + pow(speedChangeZ, 2), 0.5); 
   package->speed = abs(package->speed - 9.7); //IDK why speed is around 9.7, just did an offset and will see if this is accurate -Xiang
-  Serial.print("Speed X: " + (String)package->speed + "\n"); //-> Work on why speeds tend towards 9.8?
+  //Serial.print("Speed X: " + (String)package->speed + "\n"); //-> Work on why speeds tend towards 9.8?
 }

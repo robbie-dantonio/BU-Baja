@@ -16,13 +16,16 @@
 typedef struct data {
   float lon;
   float lat;
-  int flipped; //1 if car flipped over, 0 otherwise
+  int orientation; //What each value means in accelerometer program section
 
   //speed
   float speedX;
   float speedY;
   float speedZ;
   float speed; //Speed determined by integrating acceleration
+
+  //gps info
+  int gpsNoPackage;
 };
 
 void setup() {
