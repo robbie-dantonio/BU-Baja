@@ -30,18 +30,17 @@ sends data to receiver via transmitter.
 
 //Configuring data package as a struct with necessary data
 typedef struct data {
+  //GPS
   float lon;
   float lat;
-  int orientation; //What each value means in accelerometer program section
+  int gpsNoPackage;
 
-  //speed
+  //Accelerometer
   float speedX;
   float speedY;
   float speedZ;
   float speed; //Speed determined by integrating acceleration
-
-  //gps info
-  int gpsNoPackage;
+  int orientation; //What each value means in accelerometer program section
 };
 
 //Configure GPS module
