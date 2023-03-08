@@ -81,7 +81,7 @@ void setup() {
     //attachInterrupt(digitalPinToInterrupt(flowMeterPin), pulseCounter, FALLING);
 
   //Setup serial connection for LCD
-  
+  Serial.begin(9600);
 
   //Setup for radio module
     radio.begin();
@@ -118,12 +118,12 @@ void setup() {
 
     //Set range (currently set to 4Gs)
       //mma.setRange(MMA8451_RANGE_2_G);
-      mma.setRange(MMA8451_RANGE_4_G);
-      //mma.setRange(MMA8451_RANGE_8_G);
+      //mma.setRange(MMA8451_RANGE_4_G);
+      mma.setRange(MMA8451_RANGE_8_G);
     
     //Output set range
       int range = mma.getRange();
-      Serial.println("MMA8451 range set to " + (String)pow(2, range) + " G");
+      Serial.println("MMA8451 range set to " + (String)(pow(2, range+1)) + " G");
 
   //Setup for stepper motor
     stepper.setSpeed(60); //Speed set to 30 RPM
@@ -178,7 +178,7 @@ void loop() {
       float xdir = event.acceleration.x;
       float ydir = event.acceleration.y;
       float zdir = event.acceleration.z;
-    
+
       //Calculate speed
         calcSpeed (&package, timeElapsed, xdir, ydir, zdir);
  
@@ -217,8 +217,11 @@ void calcSpeed (data *package, float timeElapsed, float xAcc, float yAcc, float 
   float speedChangeY = package->speedY + yAcc*timeElapsed;
   float speedChangeZ = package->speedZ + zAcc*timeElapsed;
 
+  //Update speed info
   package->speedX += speedChangeX;
   package->speedY += speedChangeY;
   package->speedZ += speedChangeZ;
-  package->speed += pow(pow(speedChangeX, 2) + pow(speedChangeY, 2) + pow(speedChangeZ, 2), 0.5);
+  package->speed += pow(pow(speedChangeX, 2) + pow(speedChangeY, 2) + pow(speedChangeZ, 2), 0.5); 
+  package->speed = abs(package->speed - 9.7); //IDK why speed is around 9.7, just did an offset and will see if this is accurate -Xiang
+  Serial.print("Speed X: " + (String)package->speed + "\n"); //-> Work on why speeds tend towards 9.8?
 }

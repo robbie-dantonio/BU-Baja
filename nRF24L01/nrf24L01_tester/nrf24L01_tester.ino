@@ -3,7 +3,7 @@
 #include "RF24.h"
  
 // instantiate an object for the nRF24L01 transceiver
-RF24 radio(7, 8);  // using pin 7 for the CE pin, and pin 8 for the CSN pin
+RF24 radio(9, 10);  // using pin 7 for the CE pin, and pin 8 for the CSN pin
  
 // Let these addresses be used for the pair
 uint8_t address[][6] = { "1Node", "2Node" };
@@ -30,10 +30,11 @@ void setup() {
   }
  
   // initialize the transceiver on the SPI bus
-  if (!radio.begin()) {
+  radio.begin();
+  /*if (!radio.begin()) {
     Serial.println(F("radio hardware is not responding!!"));
     while (1) {}  // hold in infinite loop
-  }
+  }*/
  
   // print example's introductory prompt
   Serial.println(F("RF24/examples/GettingStarted"));
