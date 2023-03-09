@@ -1,8 +1,3 @@
-#include <RF24.h>
-#include <RF24_config.h>
-#include <nRF24L01.h>
-#include <printf.h>
-
 // SimpleTx - the master or the transmitter
 
 #include <SPI.h>
@@ -10,8 +5,8 @@
 #include <RF24.h>
 
 
-#define CE_PIN   48
-#define CSN_PIN 49
+#define CE_PIN   49
+#define CSN_PIN 48
 
 const byte slaveAddress[5] = {'R','x','A','A','A'};
 
@@ -37,6 +32,8 @@ void setup() {
     radio.setDataRate( RF24_250KBPS );
     radio.setRetries(3,5); // delay, count
     radio.openWritingPipe(slaveAddress);
+    radio.setPALevel(RF24_PA_MIN);
+    radio.setDataRate(RF24_250KBPS);
 }
 
 //====================

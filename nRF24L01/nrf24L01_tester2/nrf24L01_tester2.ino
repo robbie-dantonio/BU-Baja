@@ -37,7 +37,7 @@
 
 #include <SPI.h>
 
-#define CSN_PIN 10
+#define CSN_PIN 48
 #define CMD_R_REGISTER 0x00
 #define CMD_W_REGISTER 0x20
 

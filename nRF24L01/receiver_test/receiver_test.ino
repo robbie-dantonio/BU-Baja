@@ -1,5 +1,3 @@
-// SimpleRx - the slave or the receiver
-
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
@@ -13,44 +11,45 @@ RF24 radio(CE_PIN, CSN_PIN);
 
 char dataReceived[10]; // this must match dataToSend in the TX
 bool newData = false;
-int channel = 5;
-
-//===========
 
 void setup() {
-
     Serial.begin(9600);
 
-    Serial.println("SimpleRx Starting");
+    // Reset the radio module
+    /*pinMode(CE_PIN, OUTPUT);
+    digitalWrite(CE_PIN, LOW);
+    delayMicroseconds(10);
+    digitalWrite(CE_PIN, HIGH);*/
+
     radio.begin();
-    radio.setDataRate( RF24_250KBPS );
+    radio.setDataRate(RF24_250KBPS);
     radio.openReadingPipe(1, thisSlaveAddress);
-    radio.stopListening();
-    //radio.startListening();
-    radio.setChannel(channel);
+    radio.startListening();
     radio.setPALevel(RF24_PA_MIN);
 }
-
-//=============
 
 void loop() {
     getData();
     showData();
+    delay(1000);
 }
 
-//==============
-
 void getData() {
-    if ( radio.available() ) {
+    if (radio.available()) {
         radio.read( &dataReceived, sizeof(dataReceived) );
-        Serial.print(dataReceived);
+
+        Serial.print("Output: " + (String)dataReceived + "\n");
+        Serial.print("Size of Output: " + (String)sizeof(dataReceived) + "\n");
+        Serial.print("First character: " + (String)dataReceived[0] + "\n");
+
+        memset(&dataReceived, 0, sizeof(dataReceived)); // clear the dataReceived array
         newData = true;
     }
 }
 
 void showData() {
     if (newData == true) {
-        Serial.print("Data received ");
+        Serial.print("Data received: ");
         Serial.println(dataReceived);
         newData = false;
     }
