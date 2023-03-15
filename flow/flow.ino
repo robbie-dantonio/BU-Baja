@@ -1,5 +1,5 @@
 const int flowPin = 2;  // input pin for the flow sensor
-const float pulseFactor = 0.00066;  // volume of each pulse in gallons
+const float pulseFactor = 0.00066;  // volume of each pulse in gallons. THIS NEEDS TO BE TESTED AND CHANGED
 float flowRate;  // flow rate in gallons per minute
 float totalVolume; // total volume of liquid passed through the sensor in gallons
 unsigned long startTime;
