@@ -53,7 +53,10 @@ sends data to receiver via transmitter.
   SoftwareSerial mySerial(gpsIn, gpsOut);
   Adafruit_GPS GPS(&mySerial);
 
-  int gpsNoPackage = 0;
+  void gpsSetup(int); //Will setup GPS module
+
+  //GPS operations
+  void gpsOps();
 
 //Configure accelerometer
   #include <Wire.h>
@@ -62,14 +65,29 @@ sends data to receiver via transmitter.
 
   Adafruit_MMA8451 mma = Adafruit_MMA8451();
 
-  //Marker indicating whether accelerator is off
-  int accOff = 0;
+  #define accRange 4 //Range of accelerometer (in Gs)
+  void accSetup(int); //Setup for accelerometer
+  void accOps(); //Acceleration operations
 
   //Speed calculation (deprecated because of inaccurate results)
   //void calcSpeed (Data *, float, float, float, float);
 
 //Configure LCD
+  typedef struct Status {
+    int radioOk;  //1 if radio on, 0 otherwise
+    int radioSending; //1 if radio transmitting, 0 otherwise
 
+    int accOk; //1 if accelerometer initialized, 0 otherwise
+    float accX;
+    float accY;
+    float accZ;
+
+    int gpsDataAvailable; //1 if gps has data, 0 otherwise
+    int gpsFix; //1 if gps has fix, 0 otherwise
+  };
+
+  //Initialize status struct; will store information regarding the operations of the individual parts
+  Status status;
 
 //Configure stepper motor
   #include <Stepper.h>
@@ -95,51 +113,24 @@ void setup() {
   //Setup serial connection for LCD
   Serial.begin(115200);
 
-  //Setup for radio module
+  //Setup for LCD display
+
+
+  //Setup for radio module, set radio status
     if (!radio.init(car_radio_id, radio_ce, radio_csn)) {
-      Serial.print("Radio failed to start...\n");
-      while (1) {} //Hold in infinite loop
+      status.radioOk = 0;
     }
     else {
-      Serial.print("Radio Intialized!\n");
+      status.radioOk = 1;
     }
 
   //Define variables in 'Data' package
 
-  //Setup for GPS module ->> currently set to RMC and GGA
-    // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
-    GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-    // uncomment this line to turn on only the "minimum recommended" data for high update rates!
-    //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
-    // uncomment this line to turn on all the available data - for 9600 baud you'll want 1 Hz rate
-    //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_ALLDATA);
-  
-    // Set the update rate ->> currently set to 1Hz
-    // 1 Hz update rate
-    GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);
-    // 5 Hz update rate- for 9600 baud you'll have to set the output to RMC or RMCGGA only (see above)
-    //GPS.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ);
-    // 10 Hz update rate - for 9600 baud you'll have to set the output to RMC only (see above)
-    //GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);
+  //Setup gps
+  gpsSetup();
 
-  //Setup for accelerometer
-    //MMA8451 status
-      if (!mma.begin()) {
-        Serial.println("Adafruit MMA8451 Couldn't start");
-        //accOff = 1; //Set marker indicating accelerator is disabled
-      }
-      else {
-        Serial.println("MMA8451 found!");
-      
-        //Set range (currently set to 4Gs)
-          //mma.setRange(MMA8451_RANGE_2_G);
-          mma.setRange(MMA8451_RANGE_4_G);
-          //mma.setRange(MMA8451_RANGE_8_G);
-    
-        //Output set range
-          int range = mma.getRange();
-          Serial.println("MMA8451 range set to " + (String)(pow(2, range+1)) + " G");
-      }
+  //Setup Accelerometer
+  accSetup(accRange);
 
   //Setup for stepper motor
     stepper.setSpeed(60); //Speed set to 30 RPM
@@ -150,26 +141,8 @@ void setup() {
 }
 
 void loop() {
-  //Receive GPS data
-  char c = GPS.read();
-  if (GPS.newNMEAreceived()) {
-    package.gpsDataAvailable = 1; //Tell ground station that gps package was received
-    if (GPS.parse(GPS.lastNMEA())) { //Parse GPS data
-      //Get data
-      package.speed = GPS.speed;
-
-      float latitude = GPS.latitude;
-      float longitude = GPS.longitude;
-      package.lat = latitude;
-      package.lon = longitude;
-
-      Serial.print("Latitude: " + (String)latitude + " Longitude: " + (String)longitude + "\n");
-    }
-  }
-  else {
-    package.gpsDataAvailable = 0;
-  }
-
+  //GPS operations
+    gpsOps();
 
   // Calculate the flow rate and the amount of gasoline used (flow meter)
     //unsigned long currentMillis = millis();
@@ -184,9 +157,34 @@ void loop() {
       totalFuel += flowRate * (interval / 1000.0);
     }*/
 
+  //Acceleration ops
+    accOps();
+
+  //Send data to receiver (for printing to serial monitor for now)
+    if (!radio.send(pit_radio_id, &package, sizeof(package))) {
+      status.radioSending = 0;
+    }
+    else {
+      status.radioSending = 1;
+    }
+
+
+  //LCD stuff
+    //Output telemetry data (speed, accelerations)
+    //Output status
+
+  //Stepper motor
+  if (status.gpsDataAvailable) {
+    int stepsNeeded = calcSteps(stepPos, speedRange, package.speed);
+    stepper.step(stepsNeeded);
+    stepPos += stepsNeeded;
+  }
+}
+
+void accOps () {
   //Receive accelerometer data
     //Get accelerations
-    if (!accOff) {
+    if (!status.accOk) {
       /* Get a new sensor event, measure time elapsed */ 
         //float timeStart = millis();
         sensors_event_t event; 
@@ -195,9 +193,9 @@ void loop() {
         //float timeElapsed = timeEnd-timeStart;
 
       /* Display the results (acceleration is measured in m/s^2) */
-      //float accX = event.acceleration.x;
-      //float accY = event.acceleration.y;
-      //float accZ = event.acceleration.z;
+      status.accX = event.acceleration.x;
+      status.accY = event.acceleration.y;
+      status.accZ = event.acceleration.z;
 
       //Calculate speed (deprecated because of inaccurate results)
         //calcSpeed (&package, timeElapsed, accX, accY, accZ);
@@ -221,20 +219,85 @@ void loop() {
         else
           package.flipped = 0;*/
     }
+}
 
-  //Send data to receiver (for printing to serial monitor for now)
-  radio.send(pit_radio_id, &package, sizeof(package));
+void accSetup () {
+  //Setup for accelerometer
+    //MMA8451 status
+      if (!mma.begin()) {
+        Serial.println("Adafruit MMA8451 Couldn't start");
+        status.accOk = 0; //Set marker indicating accelerator is disabled
+      }
+      else {
+        //Set accelerometer status
+        status.accOk = 1;
+      
+        //Set range
+        switch (accRange) {
+          case 2:
+            mma.setRange(MMA8451_RANGE_2_G);
+            break;
+          case 4:
+            mma.setRange(MMA8451_RANGE_4_G);
+            break;
+          case 8:
+            mma.setRange(MMA8451_RANGE_8_G);
+            break;          
+        }
+    
+        //Output set range
+          int range = mma.getRange();
+          Serial.println("MMA8451 range set to " + (String)(pow(2, range+1)) + " G");
+      }
+}
 
+void gpsOps () {
+  //Receive GPS data
+    char c = GPS.read();
+    if (GPS.fix) {
+      //Set status for gps
+      status.gpsFix = 1;
 
-  //LCD stuff
+      if (GPS.newNMEAreceived()) {
+        package.gpsDataAvailable = 1; //Tell ground station that gps package was received
+        status.gpsDataAvailable = 1;
+        if (GPS.parse(GPS.lastNMEA())) { //Parse GPS data
+          //Get data
+          package.speed = GPS.speed;
 
+          float latitude = GPS.latitude;
+          float longitude = GPS.longitude;
+          package.lat = latitude;
+          package.lon = longitude;
 
-  //Stepper motor
-  if (package.gpsDataAvailable) {
-    int stepsNeeded = calcSteps(stepPos, speedRange, package.speed);
-    stepper.step(stepsNeeded);
-    stepPos += stepsNeeded;
-  }
+          Serial.print("Latitude: " + (String)latitude + " Longitude: " + (String)longitude + "\n");
+        }
+      }
+      else {
+        package.gpsDataAvailable = 0;
+      }
+    }
+    else {
+      status.gpsFix = 0;
+    }
+}
+
+void gpsSetup() {
+  //Setup for GPS module ->> currently set to RMC and GGA
+    // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
+    GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+    // uncomment this line to turn on only the "minimum recommended" data for high update rates!
+    //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
+    // uncomment this line to turn on all the available data - for 9600 baud you'll want 1 Hz rate
+    //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_ALLDATA);
+  
+    // Set the update rate ->> currently set to 1Hz
+    // 1 Hz update rate
+    GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);
+    // 5 Hz update rate- for 9600 baud you'll have to set the output to RMC or RMCGGA only (see above)
+    //GPS.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ);
+    // 10 Hz update rate - for 9600 baud you'll have to set the output to RMC only (see above)
+    //GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);
 }
 
 int calcSteps (int steps, int range, float speed) {
