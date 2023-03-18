@@ -32,13 +32,10 @@ sends data to receiver via transmitter.
     int orientation; //What each value means in accelerometer program section
 
     //speed
-    float speedX;
-    float speedY;
-    float speedZ;
     float speed; //Speed determined by integrating acceleration
 
     //gps info
-    int gpsNoPackage;
+    int gpsDataAvailable;
   };
 
   //Initialize data package
@@ -68,8 +65,8 @@ sends data to receiver via transmitter.
   //Marker indicating whether accelerator is off
   int accOff = 0;
 
-  //Speed calculation
-  void calcSpeed (Data *, float, float, float, float);
+  //Speed calculation (deprecated because of inaccurate results)
+  //void calcSpeed (Data *, float, float, float, float);
 
 //Configure LCD
 
@@ -79,11 +76,15 @@ sends data to receiver via transmitter.
 
   #define STEPS 200
 
-  #define AIN2 8
-  #define AIN1 9
-  #define BIN1 10
-  #define BIN2 11
+  #define AIN2 4
+  #define AIN1 5
+  #define BIN1 6
+  #define BIN2 7
   Stepper stepper (STEPS, AIN2, AIN1, BIN1, BIN2);
+
+  #define speedRange 35 //Range is from 0 to 35 mph
+  int stepPos = 0; //Number of steps the pointer is offset from 0 position
+  int calcSteps (int, int, float); //steps, range, speed, outputs how many steps the pointer needs to move
 
 void setup() {
   //Setup for flow meter
@@ -95,19 +96,15 @@ void setup() {
   Serial.begin(115200);
 
   //Setup for radio module
-   /* if (!radio.init(car_radio_id, radio_ce, radio_csn)) {
+    if (!radio.init(car_radio_id, radio_ce, radio_csn)) {
       Serial.print("Radio failed to start...\n");
       while (1) {} //Hold in infinite loop
     }
     else {
       Serial.print("Radio Intialized!\n");
-    }*/
+    }
 
   //Define variables in 'Data' package
-  package.speedX = 0.0;
-  package.speedY = 0.0;
-  package.speedZ = 0.0;
-  package.speed = 0.0;
 
   //Setup for GPS module ->> currently set to RMC and GGA
     // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
@@ -146,16 +143,21 @@ void setup() {
 
   //Setup for stepper motor
     stepper.setSpeed(60); //Speed set to 30 RPM
+    //Test run stepper, used for visual diagnostics and to set pointer at 0 point
+    stepper.step(-STEPS);
+    stepper.step(STEPS);
+    stepper.step(-STEPS);
 }
 
 void loop() {
   //Receive GPS data
   char c = GPS.read();
-  int package_received = GPS.newNMEAreceived();
-  if (package_received) {
-    package.gpsNoPackage = gpsNoPackage; //Tell ground station that gps package was received
+  if (GPS.newNMEAreceived()) {
+    package.gpsDataAvailable = 1; //Tell ground station that gps package was received
     if (GPS.parse(GPS.lastNMEA())) { //Parse GPS data
       //Get data
+      package.speed = GPS.speed;
+
       float latitude = GPS.latitude;
       float longitude = GPS.longitude;
       package.lat = latitude;
@@ -165,11 +167,10 @@ void loop() {
     }
   }
   else {
-    gpsNoPackage = 1;
-    package.gpsNoPackage = gpsNoPackage;
+    package.gpsDataAvailable = 0;
   }
 
-  
+
   // Calculate the flow rate and the amount of gasoline used (flow meter)
     //unsigned long currentMillis = millis();
     /*if (currentMillis - previousMillis >= interval) {
@@ -187,19 +188,19 @@ void loop() {
     //Get accelerations
     if (!accOff) {
       /* Get a new sensor event, measure time elapsed */ 
-        float timeStart = millis();
+        //float timeStart = millis();
         sensors_event_t event; 
         mma.getEvent(&event);
-        float timeEnd = millis();
-        float timeElapsed = timeEnd-timeStart;
+        //float timeEnd = millis();
+        //float timeElapsed = timeEnd-timeStart;
 
       /* Display the results (acceleration is measured in m/s^2) */
-      float accX = event.acceleration.x;
-      float accY = event.acceleration.y;
-      float accZ = event.acceleration.z;
+      //float accX = event.acceleration.x;
+      //float accY = event.acceleration.y;
+      //float accZ = event.acceleration.z;
 
-      //Calculate speed
-        calcSpeed (&package, timeElapsed, accX, accY, accZ);
+      //Calculate speed (deprecated because of inaccurate results)
+        //calcSpeed (&package, timeElapsed, accX, accY, accZ);
  
     //Get orientation
       /*The return value ranges from 0 to 7
@@ -229,10 +230,19 @@ void loop() {
 
 
   //Stepper motor
-
+  if (package.gpsDataAvailable) {
+    int stepsNeeded = calcSteps(stepPos, speedRange, package.speed);
+    stepper.step(stepsNeeded);
+    stepPos += stepsNeeded;
+  }
 }
 
-void calcSpeed (Data *package, float timeElapsed, float xAcc, float yAcc, float zAcc) {
+int calcSteps (int steps, int range, float speed) {
+  int targetPosition = ceil(STEPS*(speed/range));
+  return targetPosition - steps;
+}
+
+/*void calcSpeed (Data *package, float timeElapsed, float xAcc, float yAcc, float zAcc) {
   //"Integrate"
   float speedChangeX = package->speedX + xAcc*timeElapsed;
   float speedChangeY = package->speedY + yAcc*timeElapsed;
@@ -245,4 +255,4 @@ void calcSpeed (Data *package, float timeElapsed, float xAcc, float yAcc, float 
   package->speed += pow(pow(speedChangeX, 2) + pow(speedChangeY, 2) + pow(speedChangeZ, 2), 0.5); 
   package->speed = abs(package->speed - 9.7); //IDK why speed is around 9.7, just did an offset and will see if this is accurate -Xiang
   //Serial.print("Speed X: " + (String)package->speed + "\n"); //-> Work on why speeds tend towards 9.8?
-}
+}*/
