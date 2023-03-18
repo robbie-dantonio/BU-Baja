@@ -2,54 +2,61 @@
 
 //Configure radio
   #include <SPI.h>
-  #include <nRF24L01.h>
-  #include <RF24.h>
+  #include <NRFLite.h>
 
-  #define ce 4
-  #define csn 5
+  #define radio_ce 9
+  #define radio_csn 10
+  #define car_radio_id 0 //Mostly transmits
+  #define pit_radio_id 1 //Mostly receives
 
-  RF24 radio(ce, csn);
+  //Configuring data package as a struct with necessary data
+  typedef struct Data {
+    float lon;
+    float lat;
+    int orientation; //What each value means in accelerometer program section
 
-  const byte address[6] = "00001";
+    //speed
+    float speedX;
+    float speedY;
+    float speedZ;
+    float speed; //Speed determined by integrating acceleration
 
-//Configuring data package as a struct with necessary data
-typedef struct data {
-  float lon;
-  float lat;
-  int orientation; //What each value means in accelerometer program section
+    //gps info
+    int gpsNoPackage;
+  };
 
-  //speed
-  float speedX;
-  float speedY;
-  float speedZ;
-  float speed; //Speed determined by integrating acceleration
+  //Initialize Data package
+  Data package;
 
-  //gps info
-  int gpsNoPackage;
-};
+  //Initialize radio object
+  NRFLite radio;
 
 void setup() {
   //Setup serial monitor (for now)
   Serial.begin(115200); //Set to this baud rate to accomodate the load of GPS data that will be received
 
   //Setup radio
-    radio.begin();
-
-    //set the address
-    radio.openReadingPipe(0, address);
-    
-    //Set module as transmitter
-    radio.stopListening();
+    if (!radio.init(pit_radio_id, radio_ce, radio_csn)) {
+      Serial.print("Radio failed to start...\n");
+      while (1) {} //Hold in infinite loop
+    }
+    else {
+      Serial.print("Radio Intialized!\n");
+    }
 }
 
 void loop() {
-  data package;
+  //Receive package
+  if (radio.hasData()) {
+    radio.readData(&package);
 
-  if (radio.available()) {
-    radio.read(&package, sizeof(data));
+    //Accelerometer output
+    Serial.print("Orientation: " + (String)package.orientation + "\n");
+    //Serial.print("Speed: " + (String)package.speedX + "\n");
   }
 
-  Serial.print("Longitude: " + (String)package.lon + "\n");
+  //GPS Output
+/*  Serial.print("Longitude: " + (String)package.lon + "\n");
   Serial.print("Latitude: " + (String)package.lat + "\n");
-  Serial.print("Speed: " + (String)package.speed + "\n\n");
+  Serial.print("Speed: " + (String)package.speed + "\n\n");*/
 }

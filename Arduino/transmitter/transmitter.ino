@@ -58,7 +58,7 @@
 
 
 // Initialize pin numbers
-SoftwareSerial mySerial(8, 7); // GPS pins (see above)
+SoftwareSerial mySerial(6, 7); // GPS pins (see above)
 Adafruit_GPS GPS(&mySerial);
 
 // Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
@@ -124,7 +124,7 @@ void loop()                     // run over and over again
   //
   // We will need to somehow include that if(GPS.fix) statement though...our code to 
   // transmit GPS data will probably fall inside of this if statement!
-  /*
+  
   // approximately every 2 seconds or so, print out the current stats
   if (millis() - timer > 2000) {
     timer = millis(); // reset the timer
@@ -163,5 +163,5 @@ void loop()                     // run over and over again
     }
   Serial.print(">"); // Use > to indicate end of message
   }
-  */
+  
 }

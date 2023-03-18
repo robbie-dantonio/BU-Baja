@@ -28,7 +28,9 @@ void setup() {
 
     Serial.println("SimpleTx Starting");
 
-    radio.begin();
+    if (!radio.begin()) {
+      Serial.print("Radio not responding!\n");
+    }
     radio.setDataRate( RF24_250KBPS );
     radio.setRetries(3,5); // delay, count
     radio.openWritingPipe(slaveAddress);

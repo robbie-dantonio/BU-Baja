@@ -21,7 +21,9 @@ void setup() {
     delayMicroseconds(10);
     digitalWrite(CE_PIN, HIGH);*/
 
-    radio.begin();
+    if (!radio.begin()) {
+      Serial.print("Radio not responding!\n");
+    }
     radio.setDataRate(RF24_250KBPS);
     radio.openReadingPipe(1, thisSlaveAddress);
     radio.startListening();

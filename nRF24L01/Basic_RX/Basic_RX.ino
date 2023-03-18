@@ -61,8 +61,8 @@ void loop()
     {
         _radio.readData(&_radioData); // Note how '&' must be placed in front of the variable name.
 
-        String msg = (String)_radioData.FromRadioId;
+        //String msg = _radioData.FromRadioId;
 
-        Serial.println(msg);
+        Serial.write(_radioData.FromRadioId);
     }
 }

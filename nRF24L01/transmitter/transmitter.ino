@@ -18,30 +18,34 @@ sends data to receiver via transmitter.
 
 //Configure radio module
   #include <SPI.h>
-  #include <nRF24L01.h>
-  #include <RF24.h>
+  #include <NRFLite.h>
 
-  #define ce 4
-  #define csn 5
+  #define radio_ce 49
+  #define radio_csn 48
+  #define car_radio_id 0 //Mostly transmits
+  #define pit_radio_id 1 //Mostly receives
 
-  RF24 radio(ce, csn);
+  //Configuring data package as a struct with necessary data
+  typedef struct Data {
+    float lon;
+    float lat;
+    int orientation; //What each value means in accelerometer program section
 
-  const byte address[6] = "00001";
+    //speed
+    float speedX;
+    float speedY;
+    float speedZ;
+    float speed; //Speed determined by integrating acceleration
 
-//Configuring data package as a struct with necessary data
-typedef struct data {
-  //GPS
-  float lon;
-  float lat;
-  int gpsNoPackage;
+    //gps info
+    int gpsNoPackage;
+  };
 
-  //Accelerometer
-  float speedX;
-  float speedY;
-  float speedZ;
-  float speed; //Speed determined by integrating acceleration
-  int orientation; //What each value means in accelerometer program section
-};
+  //Initialize data package
+  Data package;
+
+  //Initialize radio
+  NRFLite radio;
 
 //Configure GPS module
   #include <Adafruit_GPS.h>
@@ -65,7 +69,7 @@ typedef struct data {
   int accOff = 0;
 
   //Speed calculation
-  void calcSpeed (data* package, float timeElapsed, float xAcc, float yAcc, float zAcc);
+  void calcSpeed (Data *, float, float, float, float);
 
 //Configure LCD
 
@@ -88,16 +92,22 @@ void setup() {
     //attachInterrupt(digitalPinToInterrupt(flowMeterPin), pulseCounter, FALLING);
 
   //Setup serial connection for LCD
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   //Setup for radio module
-    radio.begin();
+   /* if (!radio.init(car_radio_id, radio_ce, radio_csn)) {
+      Serial.print("Radio failed to start...\n");
+      while (1) {} //Hold in infinite loop
+    }
+    else {
+      Serial.print("Radio Intialized!\n");
+    }*/
 
-    //set the address
-    radio.openWritingPipe(address);
-    
-    //Set module as transmitter
-    radio.stopListening();
+  //Define variables in 'Data' package
+  package.speedX = 0.0;
+  package.speedY = 0.0;
+  package.speedZ = 0.0;
+  package.speed = 0.0;
 
   //Setup for GPS module ->> currently set to RMC and GGA
     // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
@@ -119,15 +129,15 @@ void setup() {
     //MMA8451 status
       if (!mma.begin()) {
         Serial.println("Adafruit MMA8451 Couldn't start");
-        accOff = 1; //Set marker indicating accelerator is disabled
+        //accOff = 1; //Set marker indicating accelerator is disabled
       }
       else {
         Serial.println("MMA8451 found!");
       
         //Set range (currently set to 4Gs)
           //mma.setRange(MMA8451_RANGE_2_G);
-          //mma.setRange(MMA8451_RANGE_4_G);
-          mma.setRange(MMA8451_RANGE_8_G);
+          mma.setRange(MMA8451_RANGE_4_G);
+          //mma.setRange(MMA8451_RANGE_8_G);
     
         //Output set range
           int range = mma.getRange();
@@ -139,13 +149,6 @@ void setup() {
 }
 
 void loop() {
-  //Initialize data package
-  data package;
-  package.speedX = 0;
-  package.speedY = 0;
-  package.speedZ = 0;
-  package.speed = 0;
-
   //Receive GPS data
   char c = GPS.read();
   int package_received = GPS.newNMEAreceived();
@@ -166,8 +169,9 @@ void loop() {
     package.gpsNoPackage = gpsNoPackage;
   }
 
+  
   // Calculate the flow rate and the amount of gasoline used (flow meter)
-    unsigned long currentMillis = millis();
+    //unsigned long currentMillis = millis();
     /*if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
       
@@ -190,12 +194,12 @@ void loop() {
         float timeElapsed = timeEnd-timeStart;
 
       /* Display the results (acceleration is measured in m/s^2) */
-      float xdir = event.acceleration.x;
-      float ydir = event.acceleration.y;
-      float zdir = event.acceleration.z;
+      float accX = event.acceleration.x;
+      float accY = event.acceleration.y;
+      float accZ = event.acceleration.z;
 
       //Calculate speed
-        calcSpeed (&package, timeElapsed, xdir, ydir, zdir);
+        calcSpeed (&package, timeElapsed, accX, accY, accZ);
  
     //Get orientation
       /*The return value ranges from 0 to 7
@@ -218,7 +222,7 @@ void loop() {
     }
 
   //Send data to receiver (for printing to serial monitor for now)
-  radio.write(&package, sizeof(package));
+  radio.send(pit_radio_id, &package, sizeof(package));
 
 
   //LCD stuff
@@ -228,7 +232,7 @@ void loop() {
 
 }
 
-void calcSpeed (data *package, float timeElapsed, float xAcc, float yAcc, float zAcc) {
+void calcSpeed (Data *package, float timeElapsed, float xAcc, float yAcc, float zAcc) {
   //"Integrate"
   float speedChangeX = package->speedX + xAcc*timeElapsed;
   float speedChangeY = package->speedY + yAcc*timeElapsed;
