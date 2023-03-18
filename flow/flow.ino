@@ -1,44 +1,33 @@
-// Define the pins for the flow meter sensor
-const int flowMeterPin = 7;
-
-// Define the variables
-volatile float flowRate;
-volatile unsigned int pulseCount;
-
-float totalFuel = 0.0;
-
-unsigned long previousMillis = 0;
-const long interval = 1000;
+const int flowPin = 2;  // input pin for the flow sensor
+const float pulseFactor = 0.00066;  // volume of each pulse in gallons. THIS NEEDS TO BE TESTED AND CHANGED
+float flowRate;  // flow rate in gallons per minute
+float totalVolume; // total volume of liquid passed through the sensor in gallons
+unsigned long startTime;
+unsigned int pulseCount;
 
 void setup() {
-  // Initialize the flow meter sensor
-  pinMode(flowMeterPin, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(flowMeterPin), pulseCounter, FALLING);
-
-  // Initialize the Serial communication
   Serial.begin(9600);
+  pinMode(flowPin, INPUT_PULLUP);
+  pulseCount = 0;
+  startTime = millis();
 }
 
 void loop() {
-  // Calculate the flow rate and the amount of gasoline used
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-    
-    noInterrupts();
-    flowRate = pulseCount / 7.5;
-    pulseCount = 0;
-    interrupts();
-    
-    totalFuel += flowRate * (interval / 1000.0);
+  if (digitalRead(flowPin) == LOW) {
+    pulseCount++;  // increment the pulse count when a pulse is detected
   }
-  
-  // Print the data to the Serial line
-  Serial.print("Gasoline Used: ");
-  Serial.print(totalFuel, 2);
-  Serial.println(" liters");
-}
-
-void pulseCounter() {
-  pulseCount++;
+  unsigned long currentTime = millis();
+  unsigned long elapsedTime = currentTime - startTime;
+  if (elapsedTime >= 1000) {  // calculate flow rate every second
+    flowRate = pulseCount * pulseFactor * 60.0;  // calculate flow rate in gallons per minute
+    totalVolume += flowRate / 60.0;  // add the volume passed during this interval to the total
+    Serial.print("Flow rate: ");
+    Serial.print(flowRate, 2);
+    Serial.print(" gal/min\t");
+    Serial.print("Total volume: ");
+    Serial.print(totalVolume, 2);
+    Serial.println(" gallons");
+    pulseCount = 0;  // reset the pulse count
+    startTime = currentTime;  // reset the start time
+  }
 }
