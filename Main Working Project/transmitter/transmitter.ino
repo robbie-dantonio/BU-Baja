@@ -66,7 +66,7 @@ sends data to receiver via transmitter.
   Adafruit_MMA8451 mma = Adafruit_MMA8451();
 
   #define accRange 4 //Range of accelerometer (in Gs)
-  void accSetup(int); //Setup for accelerometer
+  void accSetup(); //Setup for accelerometer
   void accOps(); //Acceleration operations
 
   //Speed calculation (deprecated because of inaccurate results)
@@ -130,7 +130,7 @@ void setup() {
   gpsSetup();
 
   //Setup Accelerometer
-  accSetup(accRange);
+  accSetup();
 
   //Setup for stepper motor
     stepper.setSpeed(60); //Speed set to 30 RPM
