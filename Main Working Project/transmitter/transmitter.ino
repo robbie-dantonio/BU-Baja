@@ -3,18 +3,15 @@ Transmitter code, goes in microcontroller on car. Receives GPS data from GPS mod
 sends data to receiver via transmitter.
 */
 
-//Configure flow meter (measures tank level)
-  // Define the pins for the flow meter sensor
-  /*const int flowMeterPin = 3; //Changed since pin 7 is used by gpsOut
+//Flow meter config
+  const int flowPin = 2;  // input pin for the flow sensor
+  const float pulseFactor = 0.00066;  // volume of each pulse in gallons. THIS NEEDS TO BE TESTED AND CHANGED
+  float flowRate;  // flow rate in gallons per minute
+  float totalVolume; // total volume of liquid passed through the sensor in gallons
+  unsigned long startTime;
+  unsigned int pulseCount;
 
-  // Define the variables
-  volatile float flowRate;
-  volatile unsigned int pulseCount;
-
-  float totalFuel = 0.0;
-
-  unsigned long previousMillis = 0;
-  const long interval = 1000;*/
+  void flowMeterOps ();
 
 //Configure radio module
   #include <SPI.h>
@@ -106,9 +103,9 @@ sends data to receiver via transmitter.
 
 void setup() {
   //Setup for flow meter
-    // Initialize the flow meter sensor
-    //pinMode(flowMeterPin, INPUT_PULLUP);
-    //attachInterrupt(digitalPinToInterrupt(flowMeterPin), pulseCounter, FALLING);
+    pinMode(flowPin, INPUT_PULLUP);
+    pulseCount = 0;
+    startTime = millis();
 
   //Setup serial connection for LCD
   Serial.begin(115200);
@@ -141,6 +138,9 @@ void setup() {
 }
 
 void loop() {
+  //Flow Meter Operations
+    flowMeterOps();
+
   //GPS operations
     gpsOps();
 
@@ -178,6 +178,26 @@ void loop() {
     int stepsNeeded = calcSteps(stepPos, speedRange, package.speed);
     stepper.step(stepsNeeded);
     stepPos += stepsNeeded;
+  }
+}
+
+void flowMeterOps () {
+  if (digitalRead(flowPin) == LOW) {
+    pulseCount++;  // increment the pulse count when a pulse is detected
+  }
+  unsigned long currentTime = millis();
+  unsigned long elapsedTime = currentTime - startTime;
+  if (elapsedTime >= 1000) {  // calculate flow rate every second
+    flowRate = pulseCount * pulseFactor * 60.0;  // calculate flow rate in gallons per minute
+    totalVolume += flowRate / 60.0;  // add the volume passed during this interval to the total
+    Serial.print("Flow rate: ");
+    Serial.print(flowRate, 2);
+    Serial.print(" gal/min\t");
+    Serial.print("Total volume: ");
+    Serial.print(totalVolume, 2);
+    Serial.println(" gallons");
+    pulseCount = 0;  // reset the pulse count
+    startTime = currentTime;  // reset the start time
   }
 }
 
