@@ -116,9 +116,11 @@ void setup() {
   //Setup for radio module, set radio status
     if (!radio.init(car_radio_id, radio_ce, radio_csn)) {
       status.radioOk = 0;
+      Serial.print("Radio Not Initialized!\n");
     }
     else {
       status.radioOk = 1;
+      Serial.print("Radio Initialized!\n");
     }
 
   //Define variables in 'Data' package
@@ -204,7 +206,7 @@ void flowMeterOps () {
 void accOps () {
   //Receive accelerometer data
     //Get accelerations
-    if (!status.accOk) {
+    if (status.accOk) {
       /* Get a new sensor event, measure time elapsed */ 
         //float timeStart = millis();
         sensors_event_t event; 
@@ -281,6 +283,7 @@ void gpsOps () {
       if (GPS.newNMEAreceived()) {
         package.gpsDataAvailable = 1; //Tell ground station that gps package was received
         status.gpsDataAvailable = 1;
+        
         if (GPS.parse(GPS.lastNMEA())) { //Parse GPS data
           //Get data
           package.speed = GPS.speed;
@@ -295,6 +298,7 @@ void gpsOps () {
       }
       else {
         package.gpsDataAvailable = 0;
+        status.gpsDataAvailable = 0;
       }
     }
     else {

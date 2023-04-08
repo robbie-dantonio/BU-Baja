@@ -16,13 +16,10 @@
     int orientation; //What each value means in accelerometer program section
 
     //speed
-    float speedX;
-    float speedY;
-    float speedZ;
     float speed; //Speed determined by integrating acceleration
 
     //gps info
-    int gpsNoPackage;
+    int gpsDataAvailable;
   };
 
   //Initialize Data package
@@ -45,13 +42,19 @@ void setup() {
     }
 }
 
+int test_counter = 0;
+
 void loop() {
   //Receive package
   if (radio.hasData()) {
     radio.readData(&package);
 
+    //Test connection
+    test_counter++;
+    Serial.print("Packet received " + (String)test_counter + "\n");
+
     //Accelerometer output
-    Serial.print("Orientation: " + (String)package.orientation + "\n");
+    //Serial.print("Orientation: " + (String)package.orientation + "\n");
     //Serial.print("Speed: " + (String)package.speedX + "\n");
   }
 
