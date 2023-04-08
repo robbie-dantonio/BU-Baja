@@ -29,7 +29,7 @@ sends data to receiver via transmitter.
     int orientation; //What each value means in accelerometer program section
 
     //speed
-    float speed; //Speed determined by integrating acceleration
+    float speed; //Speed determined by GPS module
 
     //gps info
     int gpsDataAvailable;
@@ -74,10 +74,17 @@ sends data to receiver via transmitter.
     int radioOk;  //1 if radio on, 0 otherwise
     int radioSending; //1 if radio transmitting, 0 otherwise
 
+    //GPS Data
+    float lon;
+    float lat;
+    float speed;
+
+    //Accelerometer Data
     int accOk; //1 if accelerometer initialized, 0 otherwise
     float accX;
     float accY;
     float accZ;
+    int orientation;
 
     int gpsDataAvailable; //1 if gps has data, 0 otherwise
     int gpsFix; //1 if gps has fix, 0 otherwise
@@ -146,23 +153,17 @@ void loop() {
   //GPS operations
     gpsOps();
 
-  // Calculate the flow rate and the amount of gasoline used (flow meter)
-    //unsigned long currentMillis = millis();
-    /*if (currentMillis - previousMillis >= interval) {
-      previousMillis = currentMillis;
-      
-      noInterrupts();
-      flowRate = pulseCount / 7.5;
-      pulseCount = 0;
-      interrupts();
-      
-      totalFuel += flowRate * (interval / 1000.0);
-    }*/
-
   //Acceleration ops
     accOps();
 
   //Send data to receiver (for printing to serial monitor for now)
+    //Prepare package (move priority data from status struct to package struct)
+    package.gpsDataAvailable = status.gpsDataAvailable;
+    package.lat = status.lat;
+    package.lon = status.lon;
+    package.orientation = status.orientation;
+    package.speed = status.speed;
+
     if (!radio.send(pit_radio_id, &package, sizeof(package))) {
       status.radioSending = 0;
     }
@@ -177,7 +178,7 @@ void loop() {
 
   //Stepper motor
   if (status.gpsDataAvailable) {
-    int stepsNeeded = calcSteps(stepPos, speedRange, package.speed);
+    int stepsNeeded = calcSteps(stepPos, speedRange, status.speed);
     stepper.step(stepsNeeded);
     stepPos += stepsNeeded;
   }
@@ -233,13 +234,8 @@ void accOps () {
       6: Landscape Left Front
       7: Landscape Left Back */
 
-      package.orientation = mma.getOrientation();
-      Serial.print("Orientation: " + (String)package.orientation + "\n");
-      //Need to figure out what the orientations are, will do this for now:
-        /*if (zdir < 0)
-          package.flipped = 1; //1 for flipped, 0 for anything else
-        else
-          package.flipped = 0;*/
+      status.orientation = mma.getOrientation();
+      Serial.print("Orientation: " + (String)status.orientation + "\n");
     }
 }
 
@@ -280,24 +276,22 @@ void gpsOps () {
       //Set status for gps
       status.gpsFix = 1;
 
-      if (GPS.newNMEAreceived()) {
-        package.gpsDataAvailable = 1; //Tell ground station that gps package was received
-        status.gpsDataAvailable = 1;
-        
+      if (GPS.newNMEAreceived()) { 
+        status.gpsDataAvailable = 1; //Record whether gps data is available
+
         if (GPS.parse(GPS.lastNMEA())) { //Parse GPS data
           //Get data
-          package.speed = GPS.speed;
+          status.speed = GPS.speed;
 
           float latitude = GPS.latitude;
           float longitude = GPS.longitude;
-          package.lat = latitude;
-          package.lon = longitude;
+          status.lat = latitude;
+          status.lon = longitude;
 
           Serial.print("Latitude: " + (String)latitude + " Longitude: " + (String)longitude + "\n");
         }
       }
       else {
-        package.gpsDataAvailable = 0;
         status.gpsDataAvailable = 0;
       }
     }

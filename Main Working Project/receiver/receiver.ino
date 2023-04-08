@@ -55,7 +55,7 @@ void loop() {
 
     //Accelerometer output
     //Serial.print("Orientation: " + (String)package.orientation + "\n");
-    //Serial.print("Speed: " + (String)package.speedX + "\n");
+    Serial.print("Speed: " + (String)package.speedX + "\n");
   }
 
   //GPS Output
