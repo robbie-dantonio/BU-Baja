@@ -16,10 +16,13 @@
     int orientation; //What each value means in accelerometer program section
 
     //speed
-    float speed; //Speed determined by integrating acceleration
+    float speed; //Speed determined by GPS module
 
     //gps info
     int gpsDataAvailable;
+
+    //Call back to pit
+    int recall; //1 if car wants to recall to pit, 0 otherwise
   };
 
   //Initialize Data package

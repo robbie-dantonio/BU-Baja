@@ -1,7 +1,15 @@
 /*
 Transmitter code, goes in microcontroller on car. Receives GPS data from GPS module, 
 sends data to receiver via transmitter.
+
+The Serial Monitor printing can be left for debugging purposes. 
+
 */
+
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------CONFIGURATION-------------------------------------------------------------*/
+/*-------------------------------------------------------------------------------------------------------------------------------------------*/
 
 //Flow meter config
   const int flowPin = 2;  // input pin for the flow sensor
@@ -33,6 +41,9 @@ sends data to receiver via transmitter.
 
     //gps info
     int gpsDataAvailable;
+
+    //Call back to pit
+    int recall; //1 if car wants to recall to pit, 0 otherwise
   };
 
   //Initialize data package
@@ -88,6 +99,8 @@ sends data to receiver via transmitter.
 
     int gpsDataAvailable; //1 if gps has data, 0 otherwise
     int gpsFix; //1 if gps has fix, 0 otherwise
+
+    int recall = 0; //1 if recall to pit active, 0 otherwise (default is 0, will allow toggling)
   };
 
   //Initialize status struct; will store information regarding the operations of the individual parts
@@ -107,6 +120,14 @@ sends data to receiver via transmitter.
   #define speedRange 35 //Range is from 0 to 35 mph
   int stepPos = 0; //Number of steps the pointer is offset from 0 position
   int calcSteps (int, int, float); //steps, range, speed, outputs how many steps the pointer needs to move
+
+//Configure button to recall to pit
+  #define recall = 8;
+  pinMode(recall, INPUT);
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------SETUP AND LOOP------------------------------------------------------------*/
+/*-------------------------------------------------------------------------------------------------------------------------------------------*/
 
 void setup() {
   //Setup for flow meter
@@ -156,6 +177,9 @@ void loop() {
   //Acceleration ops
     accOps();
 
+  //Receive input from recall button
+    recallButtonOps();
+
   //Send data to receiver (for printing to serial monitor for now)
     //Prepare package (move priority data from status struct to package struct)
     package.gpsDataAvailable = status.gpsDataAvailable;
@@ -163,6 +187,7 @@ void loop() {
     package.lon = status.lon;
     package.orientation = status.orientation;
     package.speed = status.speed;
+    package.recall = status.recall; //Make sure to put on LCD so driver knows they activated recall!!
 
     if (!radio.send(pit_radio_id, &package, sizeof(package))) {
       status.radioSending = 0;
@@ -182,6 +207,23 @@ void loop() {
     stepper.step(stepsNeeded);
     stepPos += stepsNeeded;
   }
+}
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------FUNCTIONS-----------------------------------------------------------------*/
+/*-------------------------------------------------------------------------------------------------------------------------------------------*/
+
+void recallButtonOps () {
+   int recall_button = digitalRead(recall);
+    //If driver presses recall button, toggle the recall status (1 or 0)
+    if (recall_button == 1) {
+      if (status.recall == 1) {
+        status.recall == 0;
+      }
+      else {
+        status.recall == 1;
+      }
+    }
 }
 
 void flowMeterOps () {
