@@ -20,119 +20,90 @@
 #include <Stepper.h>
 
 
-// For the Adafruit shield, these are the default.
+// Screen D/C and CS Pins. Also, MOSI->11, SCK->13
 #define TFT_DC 9
 #define TFT_CS 10
 
+// Speedometer constants/parameters
 #define STEPS_PER_REVOLUTION 600
 #define DELAY 500
-#define MAX_STEPS 500
-int i;
+#define MAX_STEPS 300
+static int stepCount;
+int current_speed;
 
-// Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
+
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
-// If using the breakout, change pins as desired
-//Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
 Stepper speedo(STEPS_PER_REVOLUTION, 3, 4, 5, 6); 
 
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("ILI9341 Test!"); 
 
+  // Initialize speedometer needle
   speedo.setSpeed(60);
-  i = 0;
- 
+  speedo.step(STEPS_PER_REVOLUTION);
+  speedo.step(-STEPS_PER_REVOLUTION);
+
+  stepCount = 0;
+  current_speed = 5;
+
+
+  // Initialize ccreen stuff
   tft.begin();
-
-  // read diagnostics (optional but can help debug problems)
-  uint8_t x = tft.readcommand8(ILI9341_RDMODE);
-  Serial.print("Display Power Mode: 0x"); Serial.println(x, HEX);
-  x = tft.readcommand8(ILI9341_RDMADCTL);
-  Serial.print("MADCTL Mode: 0x"); Serial.println(x, HEX);
-  x = tft.readcommand8(ILI9341_RDPIXFMT);
-  Serial.print("Pixel Format: 0x"); Serial.println(x, HEX);
-  x = tft.readcommand8(ILI9341_RDIMGFMT);
-  Serial.print("Image Format: 0x"); Serial.println(x, HEX);
-  x = tft.readcommand8(ILI9341_RDSELFDIAG);
-  Serial.print("Self Diagnostic: 0x"); Serial.println(x, HEX); 
-  
-  Serial.println(F("Benchmark                Time (microseconds)"));
-  delay(10);
-  Serial.print(F("Screen fill              "));
-  Serial.println(testFillScreen());
-  delay(500);
-
-  Serial.print(F("Text                     "));
-  Serial.println(testText());
-  delay(3000);
-
-  Serial.print(F("Lines                    "));
-  Serial.println(testLines(ILI9341_CYAN));
-  delay(500);
-
-  Serial.print(F("Horiz/Vert Lines         "));
-  Serial.println(testFastLines(ILI9341_RED, ILI9341_BLUE));
-  delay(500);
-
-  Serial.print(F("Rectangles (outline)     "));
-  Serial.println(testRects(ILI9341_GREEN));
-  delay(500);
-
-  Serial.print(F("Rectangles (filled)      "));
-  Serial.println(testFilledRects(ILI9341_YELLOW, ILI9341_MAGENTA));
-  delay(500);
-
-  Serial.print(F("Circles (filled)         "));
-  Serial.println(testFilledCircles(10, ILI9341_MAGENTA));
-
-  Serial.print(F("Circles (outline)        "));
-  Serial.println(testCircles(10, ILI9341_WHITE));
-  delay(500);
-
-  Serial.print(F("Triangles (outline)      "));
-  Serial.println(testTriangles());
-  delay(500);
-
-  Serial.print(F("Triangles (filled)       "));
-  Serial.println(testFilledTriangles());
-  delay(500);
-
-  Serial.print(F("Rounded rects (outline)  "));
-  Serial.println(testRoundRects());
-  delay(500);
-
-  Serial.print(F("Rounded rects (filled)   "));
-  Serial.println(testFilledRoundRects());
-  delay(500);
-
-  Serial.println(F("Done!"));
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(1);
-
-
 }
 
 
 void loop(void) {
 
-  speedo.step(100);
-  int current_speed = 5;
   showSpeed(current_speed);
 
-  delay(500);
+  if(current_speed > 5){
+    current_speed = current_speed - 20;
+  }
+  else{
+    current_speed = current_speed + 20;
+  }
+//  Serial.print(current_speed);
+
+//  delay(100);
+
 }
+
+
+
 
 
 /* Make this case statement for speeds 0-20 mph? */
 unsigned long showSpeed(int current_speed){
-//  tft.fillScreen(ILI9341_BLACK);
+  // Speedometer needle
+  int gpsSteps = map(current_speed, 0, 20, 0, MAX_STEPS);
+  Serial.print("gpsSteps: ");
+  Serial.print(gpsSteps);
+  Serial.print("\nstepCount: ");
+  Serial.print(stepCount);
+  Serial.print("\ngpsSteps - stepCount: ");
+  Serial.print(gpsSteps - stepCount);
+  Serial.print("\n\n");
+  speedo.step(gpsSteps - stepCount);
+  stepCount = stepCount + (gpsSteps - stepCount); 
+  
+
+  // Screen
   unsigned long start = micros();
   tft.setCursor(0, 0);
   tft.setTextColor(ILI9341_RED);    tft.setTextSize(10);
   tft.println("5 mph");
   return micros() - start;
 }
+
+
+
+
+
+
+
 
 unsigned long testFillScreen() {
   unsigned long start = micros();
