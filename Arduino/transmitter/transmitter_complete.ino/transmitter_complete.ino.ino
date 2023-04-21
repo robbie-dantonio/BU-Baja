@@ -68,6 +68,9 @@ typedef struct packet {
 
   //gps info
   int gpsDataAvailable;
+
+  //fuel level from flow meter
+  int fuelLevel;
 };
 
 // Radio: Status struct, used for keeping data together
@@ -89,6 +92,9 @@ typedef struct status {
 
     int gpsDataAvailable; //1 if gps has data, 0 otherwise
     int gpsFix; //1 if gps has fix, 0 otherwise
+
+    //Flow meter data
+    float fuelLevel;
   };
 
 
@@ -169,6 +175,7 @@ void loop(void) {
   Package.lon = Status.lon;
   Package.orientation = Status.orientation;
   Package.speed = Status.speed;
+  Package.fuelLevel = Status.fuelLevel;
 
   if (!radio.send(PIT_RADIO_ID, &Package, sizeof(Package))) {
     Status.radioSending = 0;
@@ -199,6 +206,9 @@ void flowMeterOps(){
     Serial.println(" gallons");
     pulseCount = 0;  // reset the pulse count
     startTime = currentTime;  // reset the start time
+
+    //Record fuel level in Status struct
+    Status.fuelLevel = totalVolume;
   }
 }
 /* GPS Operations */
