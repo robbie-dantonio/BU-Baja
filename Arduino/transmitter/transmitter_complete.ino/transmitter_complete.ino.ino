@@ -54,6 +54,8 @@
 #define RADIO_CSN 48  // Radio
 #define RADIO_CE  49 
 
+#define RECALL_ID 47 //Recall Button
+
 
 
 /* Structs *******************************************************************************/
@@ -68,6 +70,9 @@ typedef struct packet {
 
   //gps info
   int gpsDataAvailable;
+
+  //Call back to pit
+  int recall; //1 if car wants to recall to pit, 0 otherwise
 
   //fuel level from flow meter
   int fuelLevel;
@@ -95,6 +100,9 @@ typedef struct status {
 
     //Flow meter data
     float fuelLevel;
+
+    //Recall button - 1 if recall to pit toggled on, 0 otherwise
+    int recall;
   };
 
 
@@ -129,10 +137,12 @@ void gpsInit();                               /* Initializes GPS module         
 void accInit();                               /* Initializes accelerometer                    */
 void flowMeterInit();                         /* Initializes flow meter                       */
 void radioInit();                             /* Initializes NRF24L01 radio module            */
+void recallButtonInit();                      /* Initializes recall button                    */
 unsigned long showSpeed(int current_speed);   /* Sets screen and speedometer to current_speed */
 void gpsOps();                                /* Handles GPS operations                       */
 void accOps();                                /* Handles accelerometer operations             */
 void flowMeterOps ();                         /* Handles flow meter operations                */
+void recallButtonOps();                       /* Hanldes recall button operations             */
 
 
 /* TEMP Variables for testing ******************************************************************/
@@ -160,6 +170,7 @@ void setup() {
   radioInit();
   accInit();
   dashboardInit();
+  recallButtonInit();
 }
 
 
@@ -187,6 +198,20 @@ void loop(void) {
 
 
 /* Methods ************************************************************************************/
+
+/*Recall Button Operations*/
+void recallButtonOps () {
+   int recall_button = digitalRead(RECALL_ID);
+    //If driver presses recall button, toggle the recall status (1 or 0)
+    if (recall_button == 1) {
+      if (Status.recall == 1) {
+        Status.recall == 0;
+      }
+      else {
+        Status.recall == 1;
+      }
+    }
+}
 
 /* Flow Meter Operations */
 void flowMeterOps(){
@@ -316,6 +341,12 @@ void radioInit(){
   else {
     Status.radioOk = 1;
   }
+}
+
+
+/* Initializees recall button */
+void recallButtonInit () {
+  pinMode(RECALL_ID, INPUT);
 }
 
 
